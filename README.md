@@ -444,16 +444,16 @@ Special thanks to:
 
 *Transform your expense tracking experience today!*
 
-[![⭐ Star this repo](https://img.shields.io/github/stars/yourusername/expense-management-system?style=social)](https://github.com/yourusername/expense-management-system)
-[![🐛 Report Bug](https://img.shields.io/badge/🐛-Report_Bug-red)](https://github.com/yourusername/expense-management-system/issues)
-[![💡 Request Feature](https://img.shields.io/badge/💡-Request_Feature-blue)](https://github.com/yourusername/expense-management-system/issues)
+[![⭐ Star this repo](https://img.shields.io/github/stars/yourusername/expense-management-system?style=social)](https://github.com/Kalpan2007/Expense_Odoo)
+[![🐛 Report Bug](https://img.shields.io/badge/🐛-Report_Bug-red)](https://github.com/Kalpan2007/Expense_Odoo/issues)
+[![💡 Request Feature](https://img.shields.io/badge/💡-Request_Feature-blue)](https://github.com/Kalpan2007/Expense_Odoo/issues)
 
 ---
 
 **📞 Questions? Reach out to us!**
 
-[![Email](https://img.shields.io/badge/Email-Contact_Us-red?style=for-the-badge&logo=gmail)](mailto:your-email@example.com)
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-blue?style=for-the-badge&logo=linkedin)](https://linkedin.com/in/yourprofile)
-[![Twitter](https://img.shields.io/badge/Twitter-Follow-lightblue?style=for-the-badge&logo=twitter)](https://twitter.com/yourhandle)
+[![Email](https://img.shields.io/badge/Email-Contact_Us-red?style=for-the-badge&logo=gmail)](mailto:daxpatel.cg@gmail.com)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-blue?style=for-the-badge&logo=linkedin)](https://linkedin.com/in/dax-cg)
+[![Twitter](https://img.shields.io/badge/Twitter-Follow-lightblue?style=for-the-badge&logo=twitter)](https://twitter.com/dax_CG)
 
 </div>

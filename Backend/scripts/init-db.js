@@ -75,6 +75,7 @@ async function initializeDatabase() {
     process.exit(1);
   }
 }
+// 
 
 // Run the initialization
 initializeDatabase();
