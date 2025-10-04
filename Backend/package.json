@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "dev": "node --watch src/server.js",
-    "start": "node src/server.js"
+    "start": "node src/server.js",
+    "init-db": "node scripts/init-db.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",

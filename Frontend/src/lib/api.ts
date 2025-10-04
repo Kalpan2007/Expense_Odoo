@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = 'http://localhost:5000/api';
 
 function getAuthToken(): string | null {
   const session = localStorage.getItem('session');
@@ -12,26 +12,49 @@ function getAuthToken(): string | null {
 async function fetchAPI(endpoint: string, options: RequestInit = {}) {
   const token = getAuthToken();
 
-  const headers: HeadersInit = {
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    ...options.headers,
+    ...(options.headers as Record<string, string>),
   };
 
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-    ...options,
-    headers,
-  });
+  try {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      ...options,
+      headers,
+    });
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: 'Request failed' }));
-    throw new Error(error.error || 'Request failed');
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ 
+        error: `HTTP ${response.status}: ${response.statusText}` 
+      }));
+      
+      // Handle specific error cases
+      if (response.status === 401) {
+        // Clear invalid session data
+        localStorage.removeItem('session');
+        localStorage.removeItem('user');
+        localStorage.removeItem('company');
+        throw new Error('Session expired. Please login again.');
+      }
+      
+      if (response.status === 500) {
+        throw new Error('Server error. Please try again later.');
+      }
+      
+      throw new Error(errorData.error || `Request failed with status ${response.status}`);
+    }
+
+    return response.json();
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error('Network error. Please check your connection.');
   }
-
-  return response.json();
 }
 
 export const authAPI = {
@@ -116,23 +139,40 @@ export const expenseAPI = {
     formData.append('receipt', file);
 
     const token = getAuthToken();
-    const headers: HeadersInit = {};
+    const headers: Record<string, string> = {};
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     }
 
-    const response = await fetch(`${API_BASE_URL}/expenses/scan-receipt`, {
-      method: 'POST',
-      headers,
-      body: formData,
-    });
+    try {
+      const response = await fetch(`${API_BASE_URL}/expenses/scan-receipt`, {
+        method: 'POST',
+        headers,
+        body: formData,
+      });
 
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: 'Scan failed' }));
-      throw new Error(error.error || 'Scan failed');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ 
+          error: `HTTP ${response.status}: ${response.statusText}` 
+        }));
+        
+        if (response.status === 401) {
+          localStorage.removeItem('session');
+          localStorage.removeItem('user');
+          localStorage.removeItem('company');
+          throw new Error('Session expired. Please login again.');
+        }
+        
+        throw new Error(errorData.error || 'Scan failed');
+      }
+
+      return response.json();
+    } catch (error) {
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new Error('Network error during receipt scan.');
     }
-
-    return response.json();
   },
 };
 
