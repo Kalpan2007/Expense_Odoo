@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { Expense, ApprovalWorkflow, ApprovalRule, User } from '../types';
+import { Expense, ApprovalWorkflow, ApprovalRule } from '../types';
 import { useAuth } from './AuthContext';
+import { expenseAPI, approvalAPI } from '../lib/api';
 
 interface ExpenseContextType {
   expenses: Expense[];
@@ -44,33 +45,37 @@ export const ExpenseProvider: React.FC<ExpenseProviderProps> = ({ children }) =>
     }
   }, [user, company]);
 
-  const refreshExpenses = () => {
+  const refreshExpenses = async () => {
     if (!user || !company) return;
 
-    const allExpenses = JSON.parse(localStorage.getItem('expenses') || '[]');
-    const companyExpenses = allExpenses.filter((e: Expense) => e.companyId === company.id);
-
-    if (user.role === 'employee') {
-      setExpenses(companyExpenses.filter((e: Expense) => e.employeeId === user.id));
-    } else {
-      setExpenses(companyExpenses);
+    try {
+      const data = await expenseAPI.getAll();
+      setExpenses(data);
+    } catch (error) {
+      console.error('Failed to fetch expenses:', error);
     }
   };
 
-  const loadApprovalWorkflows = () => {
+  const loadApprovalWorkflows = async () => {
     if (!company) return;
 
-    const allWorkflows = JSON.parse(localStorage.getItem('approval_workflows') || '[]');
-    const companyWorkflows = allWorkflows.filter((w: ApprovalWorkflow) => w.companyId === company.id);
-    setApprovalWorkflows(companyWorkflows);
+    try {
+      const data = await approvalAPI.getWorkflows();
+      setApprovalWorkflows(data);
+    } catch (error) {
+      console.error('Failed to fetch approval workflows:', error);
+    }
   };
 
-  const loadApprovalRules = () => {
+  const loadApprovalRules = async () => {
     if (!company) return;
 
-    const allRules = JSON.parse(localStorage.getItem('approval_rules') || '[]');
-    const companyRules = allRules.filter((r: ApprovalRule) => r.companyId === company.id);
-    setApprovalRules(companyRules);
+    try {
+      const data = await approvalAPI.getRules();
+      setApprovalRules(data);
+    } catch (error) {
+      console.error('Failed to fetch approval rules:', error);
+    }
   };
 
   const createExpense = async (expenseData: Omit<Expense, 'id' | 'createdAt' | 'updatedAt' | 'status' | 'currentApproverStep' | 'employeeName'>) => {
@@ -78,71 +83,16 @@ export const ExpenseProvider: React.FC<ExpenseProviderProps> = ({ children }) =>
 
     setLoading(true);
 
-    const newExpense: Expense = {
-      ...expenseData,
-      id: `expense_${Date.now()}`,
-      status: 'pending',
-      currentApproverStep: 1,
-      employeeName: user.fullName,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    const allExpenses = JSON.parse(localStorage.getItem('expenses') || '[]');
-    allExpenses.push(newExpense);
-    localStorage.setItem('expenses', JSON.stringify(allExpenses));
-
-    await createApprovalWorkflowForExpense(newExpense);
-
-    refreshExpenses();
-    loadApprovalWorkflows();
-    setLoading(false);
-  };
-
-  const createApprovalWorkflowForExpense = async (expense: Expense) => {
-    const allUsers = JSON.parse(localStorage.getItem('all_users') || '[]');
-    const employee = allUsers.find((u: User) => u.id === expense.employeeId);
-
-    const workflows: ApprovalWorkflow[] = [];
-    let stepOrder = 1;
-
-    if (employee?.isManagerApprover && employee.managerId) {
-      const manager = allUsers.find((u: User) => u.id === employee.managerId);
-      if (manager) {
-        workflows.push({
-          id: `workflow_${Date.now()}_${stepOrder}`,
-          companyId: expense.companyId,
-          expenseId: expense.id,
-          approverId: manager.id,
-          approverName: manager.fullName,
-          stepOrder,
-          status: 'pending',
-          createdAt: new Date().toISOString(),
-        });
-        stepOrder++;
-      }
+    try {
+      await expenseAPI.create(expenseData);
+      await refreshExpenses();
+      await loadApprovalWorkflows();
+    } catch (error) {
+      console.error('Failed to create expense:', error);
+      throw error;
+    } finally {
+      setLoading(false);
     }
-
-    const managers = allUsers.filter((u: User) =>
-      u.companyId === expense.companyId && u.role === 'manager' && u.id !== employee?.managerId
-    );
-
-    managers.forEach((manager: User) => {
-      workflows.push({
-        id: `workflow_${Date.now()}_${stepOrder}_${manager.id}`,
-        companyId: expense.companyId,
-        expenseId: expense.id,
-        approverId: manager.id,
-        approverName: manager.fullName,
-        stepOrder,
-        status: 'pending',
-        createdAt: new Date().toISOString(),
-      });
-    });
-
-    const allWorkflows = JSON.parse(localStorage.getItem('approval_workflows') || '[]');
-    workflows.forEach(w => allWorkflows.push(w));
-    localStorage.setItem('approval_workflows', JSON.stringify(allWorkflows));
   };
 
   const updateExpenseStatus = async (expenseId: string, status: 'approved' | 'rejected', comments?: string) => {
@@ -150,120 +100,51 @@ export const ExpenseProvider: React.FC<ExpenseProviderProps> = ({ children }) =>
 
     setLoading(true);
 
-    const allWorkflows = JSON.parse(localStorage.getItem('approval_workflows') || '[]');
-    const expenseWorkflows = allWorkflows.filter((w: ApprovalWorkflow) => w.expenseId === expenseId);
-    const currentWorkflow = expenseWorkflows.find((w: ApprovalWorkflow) =>
-      w.approverId === user.id && w.status === 'pending'
-    );
-
-    if (currentWorkflow) {
-      currentWorkflow.status = status;
-      currentWorkflow.comments = comments;
-      currentWorkflow.approvedAt = new Date().toISOString();
-
-      const workflowIndex = allWorkflows.findIndex((w: ApprovalWorkflow) => w.id === currentWorkflow.id);
-      allWorkflows[workflowIndex] = currentWorkflow;
-      localStorage.setItem('approval_workflows', JSON.stringify(allWorkflows));
-    }
-
-    const allExpenses = JSON.parse(localStorage.getItem('expenses') || '[]');
-    const expenseIndex = allExpenses.findIndex((e: Expense) => e.id === expenseId);
-
-    if (expenseIndex !== -1) {
-      if (status === 'rejected') {
-        allExpenses[expenseIndex].status = 'rejected';
+    try {
+      if (status === 'approved') {
+        await approvalAPI.approve(expenseId, comments);
       } else {
-        const pendingWorkflows = expenseWorkflows.filter((w: ApprovalWorkflow) => w.status === 'pending');
-
-        if (pendingWorkflows.length <= 1) {
-          const activeRules = approvalRules.filter(r => r.isActive);
-          let approved = false;
-
-          if (activeRules.length > 0) {
-            for (const rule of activeRules) {
-              if (rule.ruleType === 'specific_approver' && rule.specificApproverId === user.id) {
-                approved = true;
-                break;
-              }
-
-              if (rule.ruleType === 'percentage' && rule.percentageThreshold) {
-                const approvedCount = expenseWorkflows.filter((w: ApprovalWorkflow) => w.status === 'approved').length;
-                const totalCount = expenseWorkflows.length;
-                const percentage = (approvedCount / totalCount) * 100;
-
-                if (percentage >= rule.percentageThreshold) {
-                  approved = true;
-                  break;
-                }
-              }
-
-              if (rule.ruleType === 'hybrid') {
-                if (rule.specificApproverId === user.id) {
-                  approved = true;
-                  break;
-                }
-
-                if (rule.percentageThreshold) {
-                  const approvedCount = expenseWorkflows.filter((w: ApprovalWorkflow) => w.status === 'approved').length;
-                  const totalCount = expenseWorkflows.length;
-                  const percentage = (approvedCount / totalCount) * 100;
-
-                  if (percentage >= rule.percentageThreshold) {
-                    approved = true;
-                    break;
-                  }
-                }
-              }
-            }
-          } else {
-            approved = true;
-          }
-
-          allExpenses[expenseIndex].status = approved ? 'approved' : 'pending';
-        } else {
-          allExpenses[expenseIndex].currentApproverStep += 1;
-        }
+        await approvalAPI.reject(expenseId, comments);
       }
 
-      allExpenses[expenseIndex].updatedAt = new Date().toISOString();
-      localStorage.setItem('expenses', JSON.stringify(allExpenses));
+      await refreshExpenses();
+      await loadApprovalWorkflows();
+    } catch (error) {
+      console.error('Failed to update expense status:', error);
+      throw error;
+    } finally {
+      setLoading(false);
     }
-
-    refreshExpenses();
-    loadApprovalWorkflows();
-    setLoading(false);
   };
 
   const createApprovalRule = async (ruleData: Omit<ApprovalRule, 'id' | 'createdAt'>) => {
-    const newRule: ApprovalRule = {
-      ...ruleData,
-      id: `rule_${Date.now()}`,
-      createdAt: new Date().toISOString(),
-    };
-
-    const allRules = JSON.parse(localStorage.getItem('approval_rules') || '[]');
-    allRules.push(newRule);
-    localStorage.setItem('approval_rules', JSON.stringify(allRules));
-
-    loadApprovalRules();
+    try {
+      await approvalAPI.createRule(ruleData);
+      await loadApprovalRules();
+    } catch (error) {
+      console.error('Failed to create approval rule:', error);
+      throw error;
+    }
   };
 
   const updateApprovalRule = async (ruleId: string, updates: Partial<ApprovalRule>) => {
-    const allRules = JSON.parse(localStorage.getItem('approval_rules') || '[]');
-    const ruleIndex = allRules.findIndex((r: ApprovalRule) => r.id === ruleId);
-
-    if (ruleIndex !== -1) {
-      allRules[ruleIndex] = { ...allRules[ruleIndex], ...updates };
-      localStorage.setItem('approval_rules', JSON.stringify(allRules));
-      loadApprovalRules();
+    try {
+      await approvalAPI.updateRule(ruleId, updates);
+      await loadApprovalRules();
+    } catch (error) {
+      console.error('Failed to update approval rule:', error);
+      throw error;
     }
   };
 
   const deleteApprovalRule = async (ruleId: string) => {
-    const allRules = JSON.parse(localStorage.getItem('approval_rules') || '[]');
-    const filteredRules = allRules.filter((r: ApprovalRule) => r.id !== ruleId);
-    localStorage.setItem('approval_rules', JSON.stringify(filteredRules));
-    loadApprovalRules();
+    try {
+      await approvalAPI.deleteRule(ruleId);
+      await loadApprovalRules();
+    } catch (error) {
+      console.error('Failed to delete approval rule:', error);
+      throw error;
+    }
   };
 
   return (

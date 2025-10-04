@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User, Company } from '../types';
+import { authAPI } from '../lib/api';
 
 interface AuthContextType {
   user: User | null;
@@ -33,8 +34,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
     const storedCompany = localStorage.getItem('company');
+    const storedSession = localStorage.getItem('session');
 
-    if (storedUser && storedCompany) {
+    if (storedUser && storedCompany && storedSession) {
       setUser(JSON.parse(storedUser));
       setCompany(JSON.parse(storedCompany));
     }
@@ -45,85 +47,61 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const login = async (email: string, password: string) => {
     setLoading(true);
 
-    const users = JSON.parse(localStorage.getItem('all_users') || '[]');
-    const foundUser = users.find((u: User) => u.email === email);
+    try {
+      const response = await authAPI.login(email, password);
 
-    if (!foundUser) {
+      setUser(response.user);
+      setCompany(response.company);
+
+      localStorage.setItem('user', JSON.stringify(response.user));
+      localStorage.setItem('company', JSON.stringify(response.company));
+      localStorage.setItem('session', JSON.stringify(response.session));
+
       setLoading(false);
-      throw new Error('Invalid credentials');
+    } catch (error) {
+      setLoading(false);
+      throw error;
     }
-
-    const companies = JSON.parse(localStorage.getItem('all_companies') || '[]');
-    const userCompany = companies.find((c: Company) => c.id === foundUser.companyId);
-
-    setUser(foundUser);
-    setCompany(userCompany || null);
-
-    localStorage.setItem('user', JSON.stringify(foundUser));
-    localStorage.setItem('company', JSON.stringify(userCompany));
-
-    setLoading(false);
   };
 
   const signup = async (email: string, password: string, fullName: string, country: string, currency: string) => {
     setLoading(true);
 
-    const newCompany: Company = {
-      id: `company_${Date.now()}`,
-      name: `${fullName}'s Company`,
-      currency,
-      country,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
+    try {
+      const response = await authAPI.signup(email, password, fullName, country, currency);
 
-    const newUser: User = {
-      id: `user_${Date.now()}`,
-      companyId: newCompany.id,
-      email,
-      fullName,
-      role: 'admin',
-      isManagerApprover: false,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
+      setUser(response.user);
+      setCompany(response.company);
 
-    const allUsers = JSON.parse(localStorage.getItem('all_users') || '[]');
-    const allCompanies = JSON.parse(localStorage.getItem('all_companies') || '[]');
+      localStorage.setItem('user', JSON.stringify(response.user));
+      localStorage.setItem('company', JSON.stringify(response.company));
+      localStorage.setItem('session', JSON.stringify(response.session));
 
-    allUsers.push(newUser);
-    allCompanies.push(newCompany);
-
-    localStorage.setItem('all_users', JSON.stringify(allUsers));
-    localStorage.setItem('all_companies', JSON.stringify(allCompanies));
-    localStorage.setItem('user', JSON.stringify(newUser));
-    localStorage.setItem('company', JSON.stringify(newCompany));
-
-    setUser(newUser);
-    setCompany(newCompany);
-
-    setLoading(false);
+      setLoading(false);
+    } catch (error) {
+      setLoading(false);
+      throw error;
+    }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      await authAPI.logout();
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+
     setUser(null);
     setCompany(null);
     localStorage.removeItem('user');
     localStorage.removeItem('company');
+    localStorage.removeItem('session');
   };
 
   const updateUser = (updates: Partial<User>) => {
     if (!user) return;
 
     const updatedUser = { ...user, ...updates, updatedAt: new Date().toISOString() };
-
-    const allUsers = JSON.parse(localStorage.getItem('all_users') || '[]');
-    const userIndex = allUsers.findIndex((u: User) => u.id === user.id);
-
-    if (userIndex !== -1) {
-      allUsers[userIndex] = updatedUser;
-      localStorage.setItem('all_users', JSON.stringify(allUsers));
-    }
 
     setUser(updatedUser);
     localStorage.setItem('user', JSON.stringify(updatedUser));
