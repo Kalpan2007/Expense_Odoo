@@ -3,7 +3,7 @@
 # 💰 **Expense Management System**
 ### *The Ultimate Financial Tracking Solution*
 
-[![Demo Video](https://img.shields.io/badge/🎥_Demo_Video-Watch_Now-red?style=for-the-badge&logo=youtube)](https://youtube.com/watch?v=YOUR_VIDEO_ID_HERE)
+[![Demo Video](https://img.shields.io/badge/🎥_Demo_Video-Watch_Now-red?style=for-the-badge&logo=youtube)](https://youtu.be/wuV864I_mPE?si=IJmWTjs5lYe97XaQ)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](LICENSE)
 [![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg?style=for-the-badge&logo=node.js)](https://nodejs.org/)
 [![React](https://img.shields.io/badge/React-18+-blue.svg?style=for-the-badge&logo=react)](https://reactjs.org/)
